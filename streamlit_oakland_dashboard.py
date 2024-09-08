@@ -112,20 +112,40 @@ with col2:
     # Add some spacing
     ''
     ''
-    ''
-    ''
-    ''
-    ''
-    ''
-    ''
 
     url_campaign_funding = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=645810962#gid=645810962'
-    df_campaign_funding = conn.query('select Rpt_Year, Filer_NamL as Reporter, sum(Amount_A) as amount from "Campaign finance summary totals" group by 1,2', spreadsheet=url_campaign_funding)
+    df_campaign_funding = conn.query('''
+                                     select From_Date, Committee_Type, Filer_NamL as Reporter, sum(Amount_A) as amount 
+                                     from "Campaign finance summary totals" 
+                                     where Line_Item = '3' and Form_Type in ('A','B1','C','D','E','F','G','H','I')
+                                     group by 1,2,3
+                                     ''', spreadsheet=url_campaign_funding)
+    df_campaign_funding['From_Date'] = pd.to_datetime(df_campaign_funding['From_Date'])
     # st.dataframe(df_campaign_funding)
+    
+    codes = df_campaign_funding['Committee_Type'].unique()
 
-    altair_campaign_funding = alt.Chart(df_campaign_funding).mark_bar(cornerRadius=3).encode(
-        x=alt.X('Rpt_Year', title=None),  # No title for x-axis
-        y=alt.Y('amount', title=None),  # No title for y-axis
+    if not len(codes):
+        st.warning("Select at least one country")
+    
+    selected_codes = st.multiselect(
+        'Which Committee Types would you like to view?',
+        codes,
+        ['CAO', 'CTL', 'RCP', 'BMC'])
+    
+    # Filter the data
+    filtered_campaign_funding_df = df_campaign_funding[
+        (df_campaign_funding['Committee_Type'].isin(selected_codes))
+        & (df_campaign_funding['From_Date'] <= pd.to_datetime(to_year, format='%Y'))
+        & (pd.to_datetime(from_year, format='%Y') <= df_campaign_funding['From_Date'])
+    ]
+
+    # extract year from From_Date as string into new column 'Year'
+    filtered_campaign_funding_df['Year'] = filtered_campaign_funding_df['From_Date'].dt.year.astype(str)
+
+    altair_campaign_funding = alt.Chart(filtered_campaign_funding_df).mark_bar(cornerRadius=3).encode(
+        x=alt.X('Year', title=None, axis=alt.Axis(labelAngle=45)),  # Tilt x-axis labels 90 degrees
+        y=alt.Y('amount', title=None, axis=alt.Axis(format='$,.2r')),  # No title for y-axis
         color=alt.Color('Reporter',legend=None)
     ).properties(title='Campaign funding by year', height=400)
     st.altair_chart(altair_campaign_funding, use_container_width=True)
