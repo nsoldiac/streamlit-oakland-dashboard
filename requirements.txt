@@ -1,3 +1,6 @@
 streamlit
 git+https://github.com/streamlit/gsheets-connection
-pandasql  # this is for example/st_app.py only
+pandasql  # this is for example/st_app.py onlystreamlit==1.22
+st-gsheets-connection
+numpy
+pandasql  
