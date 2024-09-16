@@ -16,7 +16,7 @@ st.image('big_logo.png')
 
 st.write('''
 # Oakland City Statistics  
-Welcome to Empower Oakland's city statistics dashboard. This dashboard provides a central location for key city statistics that are otherwise reported in descentralized and heterogenous ways. The goal of this dashboard is to empower Oakland resudents to have easy access to this information to help them make opinions about the city's current state in context of its past.
+Welcome to Empower Oakland's city statistics dashboard. This dashboard provides a central location for city data usually siloed and disconnected. The goal of this dashboard is to bring these valuable bits of data together to show a cohesive view at how Okland is doing today and in context of its past.
 ''')
 ''
 # Sidebar here 👇
@@ -55,22 +55,6 @@ with col1:
         & (pd.to_datetime(from_year, format='%Y') <= crime_df['date_month'])
     ]
 
-    # Group by date and crimetype, and sum the 'count' column
-    # df_grouped = crime_df.groupby(['date_month', 'crimetype'], as_index=False)['count'].sum()
-    # df_grouped['date_month'] = pd.to_datetime(df_grouped['date_month'])
-
-    # Pivot the DataFrame to create a new column for each distinct crime type
-    # df_pivoted = df_grouped.pivot(index='date_month', columns='crimetype', values='count')
-
-    # Fill any missing values with 0 (since there might be dates without specific crimes)
-    # df_pivoted = df_pivoted.fillna(0)
-
-    # Flatten the columns (optional, makes it easier to work with multi-index columns)
-    # df_pivoted.columns = df_pivoted.columns.get_level_values(0)
-
-    # st.dataframe(df_pivoted)
-    # crime_line_chart = st.line_chart(df_pivoted)
-
     # Input annotations
     # ANNOTATIONS = [
     #     ("Jan 05, 2015", "Libby Schaaf 1st term"),
@@ -98,7 +82,7 @@ with col1:
     altair_crimeChart = alt.Chart(filtered_crime_df).mark_line(interpolate="monotone").encode(
         x=alt.X('date_month', title=None),  # No title for x-axis
         y=alt.Y('count', title='Crime count'),  # No title for y-axis,
-        color=alt.Color('crimetype',legend=alt.Legend(title=None, orient='bottom', direction='horizontal', labelFontSize=12, labelOverlap=True))
+        color=alt.Color('crimetype', scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']), legend=alt.Legend(title=None, orient='bottom', direction='horizontal', labelFontSize=12, labelOverlap=True))
     ).properties(
         height=450,
         padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
@@ -154,30 +138,22 @@ with col2:
         (2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024),
         index=7)
 
-    # subfilter_col1, subfilter_col2 = st.columns(2, vertical_alignment="bottom")
-
-    # subfilter_col1.year_option = st.selectbox(
-    #     "Campaign funding year",
-    #     (2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024),
-    #     index=7,
-    # )
-
-    # subfilter_col2.race_option = st.selectbox(
-    #     "Campaign race",
-    #     ('Mayor','City Council','District Attorney','School Board'),
-    #     index=0,
-    # )
-
     url_campaign_funding = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=645810962#gid=645810962'
     df_campaign_funding = conn.query('''
                                      select From_Date, Campaign_type, Filer_NamL as Reporter, sum(Amount_A) as amount 
                                      from "Campaign finance summary totals" 
-                                     where Line_Item = '3' and Form_Type in ('A','B1','C','D','E','F','G','H','I') and Campaign_type in ('Mayor','City Council','District Attorney','School Board')
+                                     where Line_Item = '5' and Form_Type = 'F460' and Campaign_type in ('Mayor','City Council','District Attorney','School Board')
                                      group by 1,2,3
                                      ''', spreadsheet=url_campaign_funding)
     df_campaign_funding['From_Date'] = pd.to_datetime(df_campaign_funding['From_Date'])
     df_campaign_funding['Year'] = df_campaign_funding['From_Date'].dt.year
     # st.dataframe(df_campaign_funding)
+
+     # Filter the data
+    filtered_campaign_funding_df = df_campaign_funding[
+        (df_campaign_funding['Year'] == race_year)
+        & (df_campaign_funding['Campaign_type'] == race_type)
+    ]
 
     subcol_left, subcol_right = st.columns(2, vertical_alignment="top")
 
@@ -186,19 +162,36 @@ with col2:
         ''
         ''
         # st.subcol_left(altair_campaign_funding, use_container_width=True)
-        total_funding = df_campaign_funding['amount'].sum()
+        total_funding = filtered_campaign_funding_df['amount'].sum()
         formatted_funding = "${:,.0f}".format(total_funding)
-        st.metric(label='**Total funding for filter selection**', value=formatted_funding, delta=0, delta_color='normal')
+        prior_year = race_year - 1
+        prior_year_contributions = "{:.0%}".format(total_funding / df_campaign_funding[(df_campaign_funding['Year'] == prior_year) & (df_campaign_funding['Campaign_type'] == race_type)]['amount'].sum() - 1)
+        
+        st.metric(
+            label='**Total contributions & yearly change**', 
+            value=formatted_funding, 
+            delta=prior_year_contributions, 
+            delta_color='normal'
+        )
+
+        total_reporters = filtered_campaign_funding_df['Reporter'].nunique()
+        prior_year_contributors = "{:.0%}".format(total_reporters / df_campaign_funding[(df_campaign_funding['Year'] == prior_year) & (df_campaign_funding['Campaign_type'] == race_type)]['Reporter'].nunique() - 1)
+
+        st.metric(
+            label='**Total contributors & yearly change**', 
+            value=total_reporters, 
+            delta=prior_year_contributors, 
+            delta_color='normal')
 
     with subcol_right:
-        altair_campaign_funding = alt.Chart(df_campaign_funding).mark_arc(innerRadius=50).encode(
+        altair_campaign_funding = alt.Chart(df_campaign_funding).mark_arc(innerRadius=50,padAngle=0.02).encode(
             theta=alt.Theta('amount:Q'),
-            color=alt.Color('Reporter',legend=None),
+            color=alt.Color('Reporter',legend=None, scale=alt.Scale(range=['#1AAE74ff','#24B079ff','#2EB27Eff','#38B483ff','#42B789ff','#4BB98Eff','#55BB93ff','#5FBD98ff','#69BF9Dff','#73C1A2ff','#7DC3A7ff','#87C5ACff','#91C8B2ff','#9ACAB7ff','#A4CCBCff','#AECEC1ff','#B8D0C6ff'])), 
             tooltip=[alt.Tooltip('Reporter:N', title='Reporter'),
                 alt.Tooltip('amount:Q', format='$,.0f', title='Amount')],
             order=alt.Order('amount', sort='descending')
         ).properties(
-            title=alt.Title(text='Campaign funding by reporter'),
+            title=alt.Title(text='Campaign monetary contrubutions'),
             padding={"left": 0, "top": 50, "right": 0, "bottom": 0},
             height=300,
         ).transform_filter(
