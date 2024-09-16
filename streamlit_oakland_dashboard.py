@@ -113,8 +113,8 @@ with col1:
         tooltip=[alt.Tooltip('Year_Quarter:N', title='Quarter'), alt.Tooltip('Difference_YoY:Q', format='.0%', title='Yearly change')],
         color=alt.condition(
             alt.datum.Difference_YoY < 0,
-            alt.value('green'),  # color the bar green if the value is negative
-            alt.value('red')  # color the bar red if the value is positive
+            alt.value('#1AAE74'),  # color the bar green if the value is negative
+            alt.value('#EB5E55')  # color the bar red if the value is positive
         )
     ).properties(
         height=450,
@@ -193,7 +193,7 @@ with col2:
         ).properties(
             title=alt.Title(text='Campaign monetary contrubutions'),
             padding={"left": 0, "top": 50, "right": 0, "bottom": 0},
-            height=300,
+            height=350,
         ).transform_filter(
             (alt.datum.Year == race_year) & (alt.datum.Campaign_type == race_type)
         )
