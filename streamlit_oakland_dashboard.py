@@ -30,7 +30,7 @@ with col1:
     max_value = datetime.datetime.now().year #crime_df['date_month'].max().year
 
     from_year, to_year = st.slider(
-        '**Year filter** (will filter applicable charts only)',
+        '**Year range for crime ativity**',
         min_value=min_value,
         max_value=max_value,
         value=[min_value, max_value])
@@ -72,106 +72,142 @@ with col1:
     # crime_line_chart = st.line_chart(df_pivoted)
 
     # Input annotations
-    ANNOTATIONS = [
-        ("Jan 05, 2015", "Libby Schaaf 1st term"),
-        ("Jan 07, 2019", "Libby Schaaf's 2nd term"),
-        ("Mar 17, 2020", "COVID-19 lockdown + restrictions encated"),
-        ("Jan 09, 2023", "Sheng Tao + Pamela Price assume office"),
-    ]
+    # ANNOTATIONS = [
+    #     ("Jan 05, 2015", "Libby Schaaf 1st term"),
+    #     ("Jan 07, 2019", "Libby Schaaf's 2nd term"),
+    #     ("Mar 17, 2020", "COVID-19 lockdown + restrictions encated"),
+    #     ("Jan 09, 2023", "Sheng Tao + Pamela Price assume office"),
+    # ]
 
     # Create a chart with annotations
-    annotations_df = pd.DataFrame(ANNOTATIONS, columns=["date_month", "event"])
-    annotations_df.date_month = pd.to_datetime(annotations_df.date_month)
-    annotations_df["y"] = 0
-    annotation_layer = (
-        alt.Chart(annotations_df)
-        .mark_text(size=20, text="⬇️", dx=0, dy=-100, align="center")
-        .encode(
-            x="date_month:T",
-            y=alt.Y("y:Q"),
-            tooltip=["event"],
-        )
-        .interactive()
-    )
+    # annotations_df = pd.DataFrame(ANNOTATIONS, columns=["date_month", "event"])
+    # annotations_df.date_month = pd.to_datetime(annotations_df.date_month)
+    # annotations_df["y"] = 0
+    # annotation_layer = (
+    #     alt.Chart(annotations_df)
+    #     .mark_text(size=20, text="⬇️", dx=0, dy=-100, align="center")
+    #     .encode(
+    #         x="date_month:T",
+    #         y=alt.Y("y:Q"),
+    #         tooltip=["event"],
+    #     )
+    #     .interactive()
+    # )
 
     # Altair line chart
     altair_crimeChart = alt.Chart(filtered_crime_df).mark_line(interpolate="monotone").encode(
         x=alt.X('date_month', title=None),  # No title for x-axis
-        y=alt.Y('count', title='Crime count'),  # No title for y-axis
-        color=alt.Color('crimetype',legend=alt.Legend(title=None, orient='bottom', labelFontSize=12, labelOverlap=True))
+        y=alt.Y('count', title='Crime count'),  # No title for y-axis,
+        color=alt.Color('crimetype',legend=alt.Legend(title=None, orient='bottom', direction='horizontal', labelFontSize=12, labelOverlap=True))
     ).properties(
-        title='Crime Counts by month for top crime types',
-        height=400
+        height=450,
+        padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
+        title=alt.Title(text='Crime Counts for top crime types', anchor='start', dx=30, dy=-15)
     )
 
-    st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
-    # st.altair_chart(altair_crimeChart, use_container_width=True)
+    # st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
+    st.altair_chart(altair_crimeChart.interactive(), use_container_width=True)
+    ''
+    ''
+
+
+    ### Stops data (from Tim's sheet)
+    url_stops = 'https://docs.google.com/spreadsheets/d/1bDUZO6l8xTXYz0K_ABJlPZbgh_mef4cvle70sgO_gXM/edit?gid=1616870163#gid=1616870163'
+    df_stops = conn.query('''
+                          select * --Year_Quarter, Difference_YoY
+                          from "OPD Quarterly Crime stats" 
+                          where Crimes_2 = 'Violent Crime Index (homicide, aggravated assault, rape, robbery)'
+                          ''', spreadsheet=url_stops)
+    # Year column to string
+    # df_stops['Year'] = df_stops['Year'].astype(str)
+    # df_stops['Annual_Change_YTD'] = df_stops['Annual_Change_YTD'].str.replace('%', '').astype(float) / 100
+
+    # st.dataframe(df_stops)
+    altair_stopsChart = alt.Chart(df_stops).mark_bar(interpolate="monotone").encode(
+        x=alt.X('Year_Quarter:N', title='Quarter'),  # No title for x-axis
+        y=alt.Y('Difference_YoY:Q', title='Yearly change in crime', scale=alt.Scale(nice=False, zero=False, padding=0)),  # No title for y-axis
+        tooltip=[alt.Tooltip('Year_Quarter:N', title='Quarter'), alt.Tooltip('Difference_YoY:Q', format='.0%', title='Yearly change')],
+        color=alt.condition(
+            alt.datum.Difference_YoY < 0,
+            alt.value('green'),  # color the bar green if the value is negative
+            alt.value('red')  # color the bar red if the value is positive
+        )
+    ).properties(
+        height=450,
+        padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
+        title=alt.Title(text='Violent crime change vs prior year', anchor='start', dx=30, dy=-15),
+    ).configure_axisY(
+        labelExpr="format(datum.value, '.0%')"
+    )
+    
+    st.altair_chart((altair_stopsChart).interactive(), use_container_width=True)
 
 
 with col2:
-    # Add some spacing
-    ''
-    ''
+    subcol_race_type, subcol_race_year = st.columns(2, vertical_alignment="bottom")
+    race_type = subcol_race_type.selectbox(
+        "**Campaign race**",
+        ('Mayor','City Council','District Attorney','School Board'), 
+        index=0)
+    race_year = subcol_race_year.selectbox( 
+        "**Campaign funding year**",
+        (2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024),
+        index=7)
+
+    # subfilter_col1, subfilter_col2 = st.columns(2, vertical_alignment="bottom")
+
+    # subfilter_col1.year_option = st.selectbox(
+    #     "Campaign funding year",
+    #     (2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024),
+    #     index=7,
+    # )
+
+    # subfilter_col2.race_option = st.selectbox(
+    #     "Campaign race",
+    #     ('Mayor','City Council','District Attorney','School Board'),
+    #     index=0,
+    # )
 
     url_campaign_funding = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=645810962#gid=645810962'
     df_campaign_funding = conn.query('''
-                                     select From_Date, Committee_Type, Filer_NamL as Reporter, sum(Amount_A) as amount 
+                                     select From_Date, Campaign_type, Filer_NamL as Reporter, sum(Amount_A) as amount 
                                      from "Campaign finance summary totals" 
-                                     where Line_Item = '3' and Form_Type in ('A','B1','C','D','E','F','G','H','I')
+                                     where Line_Item = '3' and Form_Type in ('A','B1','C','D','E','F','G','H','I') and Campaign_type in ('Mayor','City Council','District Attorney','School Board')
                                      group by 1,2,3
                                      ''', spreadsheet=url_campaign_funding)
     df_campaign_funding['From_Date'] = pd.to_datetime(df_campaign_funding['From_Date'])
+    df_campaign_funding['Year'] = df_campaign_funding['From_Date'].dt.year
     # st.dataframe(df_campaign_funding)
+
+    subcol_left, subcol_right = st.columns(2, vertical_alignment="top")
+
+    with subcol_left:
+        ''
+        ''
+        ''
+        # st.subcol_left(altair_campaign_funding, use_container_width=True)
+        total_funding = df_campaign_funding['amount'].sum()
+        formatted_funding = "${:,.0f}".format(total_funding)
+        st.metric(label='**Total funding for filter selection**', value=formatted_funding, delta=0, delta_color='normal')
+
+    with subcol_right:
+        altair_campaign_funding = alt.Chart(df_campaign_funding).mark_arc(innerRadius=50).encode(
+            theta=alt.Theta('amount:Q'),
+            color=alt.Color('Reporter',legend=None),
+            tooltip=[alt.Tooltip('Reporter:N', title='Reporter'),
+                alt.Tooltip('amount:Q', format='$,.0f', title='Amount')],
+            order=alt.Order('amount', sort='descending')
+        ).properties(
+            title=alt.Title(text='Campaign funding by reporter'),
+            padding={"left": 0, "top": 50, "right": 0, "bottom": 0},
+            height=300,
+        ).transform_filter(
+            (alt.datum.Year == race_year) & (alt.datum.Campaign_type == race_type)
+        )
+        
+        st.altair_chart(altair_campaign_funding, use_container_width=True)
+
+
+
     
-    codes = df_campaign_funding['Committee_Type'].unique()
-
-    if not len(codes):
-        st.warning("Select at least one country")
     
-    selected_codes = st.multiselect(
-        'Which Committee Types would you like to view?',
-        codes,
-        ['CAO', 'CTL', 'RCP', 'BMC'])
-    
-    # Filter the data
-    filtered_campaign_funding_df = df_campaign_funding[
-        (df_campaign_funding['Committee_Type'].isin(selected_codes))
-        & (df_campaign_funding['From_Date'] <= pd.to_datetime(to_year, format='%Y'))
-        & (pd.to_datetime(from_year, format='%Y') <= df_campaign_funding['From_Date'])
-    ]
-
-    # extract year from From_Date as string into new column 'Year'
-    filtered_campaign_funding_df['Year'] = filtered_campaign_funding_df['From_Date'].dt.year.astype(str)
-
-    altair_campaign_funding = alt.Chart(filtered_campaign_funding_df).mark_bar(cornerRadius=3).encode(
-        x=alt.X('Year', title=None, axis=alt.Axis(labelAngle=45)),  # Tilt x-axis labels 90 degrees
-        y=alt.Y('amount', title=None, axis=alt.Axis(format='$,.2r')),  # No title for y-axis
-        color=alt.Color('Reporter',legend=None)
-    ).properties(title='Campaign funding by year', height=400)
-    st.altair_chart(altair_campaign_funding, use_container_width=True)
-
-    # progress_bar = st.sidebar.progress(0)
-    # status_text = st.sidebar.empty()
-    # last_rows = np.random.randn(1, 1)
-    # chart = st.line_chart(last_rows)
-
-    # for i in range(1, 20):
-    #     new_rows = last_rows[-1, :] + np.random.randn(5, 1).cumsum(axis=0)
-    #     # status_text.text("%i%% Complete" % i)
-    #     chart.add_rows(new_rows)
-    #     # progress_bar.progress(i)
-    #     last_rows = new_rows
-    #     time.sleep(0.05)
-    # st.dataframe(last_rows)
-    # progress_bar.empty()
-
-    # # Streamlit widgets automatically run the script from top to bottom. Since
-    # # this button is not connected to any other logic, it just causes a plain
-    # # rerun.
-    # st.button("Re-run")
-
-
-
-
-
-
