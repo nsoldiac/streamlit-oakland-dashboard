@@ -126,6 +126,41 @@ with col1:
     
     st.altair_chart((altair_stopsChart).interactive(), use_container_width=True)
 
+    # OPD Call wait times
+    url_opd_call_wait = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=1550683969#gid=1550683969'
+    df_opd_call_wait = conn.query('''
+                                     select Num_month, Year, Wait_time
+                                     from "OPD Call response times" 
+                                     where Priority = '1'
+                                     ''', spreadsheet=url_opd_call_wait)
+
+    # st.write(df_opd_call_wait)
+
+    altair_opd_call_wait = alt.Chart(df_opd_call_wait).mark_line(
+        interpolate="monotone",
+        point=alt.OverlayMarkDef(filled=True)
+    ).encode(
+        x=alt.X('Num_month:O', title=None),  # No title for x-axis
+        y=alt.Y('Wait_time:Q', title='Minutes'),  # No title for y-axis,
+        color=alt.Color(
+            'Year:O', 
+            scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']), 
+            legend=alt.Legend(
+                orient='bottom', 
+                direction='horizontal', 
+                labelFontSize=12, 
+                labelOverlap=True), 
+                title=None
+                )
+    ).properties(
+        height=500,
+        # padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
+        title=alt.Title(text="Average Police call to arrival in minutes", anchor='start', dx=30) #, dy=0)
+    )
+
+    # st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
+    st.altair_chart(altair_opd_call_wait.interactive(), use_container_width=True)
+
 
 with col2:
     subcol_race_type, subcol_race_year = st.columns(2, vertical_alignment="bottom")
@@ -200,7 +235,11 @@ with col2:
         
         st.altair_chart(altair_campaign_funding, use_container_width=True)
 
-
-
+    ''
+    ''
+    st.divider()
+    ''
+    ''
+    
     
     
