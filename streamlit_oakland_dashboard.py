@@ -8,9 +8,6 @@ import datetime #, scipy, time
 
 st.set_page_config(layout="wide")
 
-# Load the data from Google Sheets
-conn = st.connection("gsheets", type=GSheetsConnection)
-url = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=0#gid=0'
 
 st.image('big_logo.png')
 
@@ -35,6 +32,9 @@ with col1:
         max_value=max_value,
         value=[min_value, max_value])
 
+    # Load the data from Google Sheets
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    url = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=0#gid=0'
 
     ## Crime Data
     crime_df = conn.read(spreadsheet=url, usecols=[0, 1, 2])
@@ -85,8 +85,8 @@ with col1:
         color=alt.Color('crimetype', scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']), legend=alt.Legend(title=None, orient='bottom', direction='horizontal', labelFontSize=12, labelOverlap=True))
     ).properties(
         height=450,
-        padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
-        title=alt.Title(text='Crime Counts for top crime types', anchor='start', dx=30, dy=-15)
+        padding={"left": 15, "top": 0, "right": 0, "bottom": 0},
+        title=alt.Title(text='Crime Counts for top crime types', anchor='start', dx=45, dy=-15)
     )
 
     # st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
@@ -109,7 +109,7 @@ with col1:
     # st.dataframe(df_stops)
     altair_stopsChart = alt.Chart(df_stops).mark_bar(interpolate="monotone").encode(
         x=alt.X('Year_Quarter:N', title='Quarter'),  # No title for x-axis
-        y=alt.Y('Difference_YoY:Q', title='Yearly change in crime', scale=alt.Scale(nice=False, zero=False, padding=0)),  # No title for y-axis
+        y=alt.Y('Difference_YoY:Q', title='Yearly change in crime'),  # No title for y-axis
         tooltip=[alt.Tooltip('Year_Quarter:N', title='Quarter'), alt.Tooltip('Difference_YoY:Q', format='.0%', title='Yearly change')],
         color=alt.condition(
             alt.datum.Difference_YoY < 0,
@@ -118,14 +118,16 @@ with col1:
         )
     ).properties(
         height=450,
-        padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
+        # padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
         title=alt.Title(text='Violent crime change vs prior year', anchor='start', dx=30, dy=-15),
     ).configure_axisY(
         labelExpr="format(datum.value, '.0%')"
     )
     
     st.altair_chart((altair_stopsChart).interactive(), use_container_width=True)
-
+    ''
+    
+    
     # OPD Call wait times
     url_opd_call_wait = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=1550683969#gid=1550683969'
     df_opd_call_wait = conn.query('''
@@ -160,6 +162,8 @@ with col1:
 
     # st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
     st.altair_chart(altair_opd_call_wait.interactive(), use_container_width=True)
+
+
 
 
 with col2:
@@ -240,6 +244,72 @@ with col2:
     st.divider()
     ''
     ''
+
+    # Ciry Service Requests
+    url_service_requests = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=1661792648#gid=1661792648'
+    df_service_requests = conn.query('''
+                                     select Month_date, Category, Status, Count
+                                     from "City Service requests" 
+                                     ''', spreadsheet=url_service_requests)
+    df_service_requests['Status'] = df_service_requests['Status'].replace(['EVALUATED - NO FURTHER ACTION', 'GONE ON ARRIVAL'], 'CLOSED')
+    df_service_requests['Status'] = df_service_requests['Status'].replace(['WOCREATE'], 'PENDING')
+    df_service_requests['Year'] = pd.to_datetime(df_service_requests['Month_date']).dt.year
+    st.write(df_service_requests)
+
+    altair_abandoned_vehicle_servce_requests = alt.Chart(df_service_requests).mark_bar(
+        width=15,  # Set the width of the bars
+    ).encode(
+        x=alt.X('Month_date:T', title=None),  # No title for x-axis
+        y=alt.Y('Count:Q', title='Requests'),  # No title for y-axis,
+        color=alt.Color(
+            'Status:O', 
+            scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']), 
+            legend=alt.Legend(
+                orient='bottom', 
+                direction='horizontal', 
+                labelFontSize=12, 
+                labelOverlap=True), 
+                title=None
+                )
+    ).properties(
+        height=400,
+        padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
+        title=alt.Title(text="Abandoned vehicle service requests", anchor='start', dx=50) #, dy=0)
+    ).transform_filter(
+        (alt.datum.Category == 'Abandoned vehicle')
+        & (alt.datum.Year >= 2022)
+    )
+
+    st.altair_chart(altair_abandoned_vehicle_servce_requests.interactive(), use_container_width=True)
+
+
+    
+    # Street repair service requests
+    altair_street_repair_servce_requests = alt.Chart(df_service_requests).mark_bar(
+        width=15,  # Set the width of the bars
+    ).encode(
+        x=alt.X('Month_date:T', title=None),  # No title for x-axis
+        y=alt.Y('Count:Q', title='Requests'),  # No title for y-axis,
+        color=alt.Color(
+            'Status:O', 
+            scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']), 
+            legend=alt.Legend(
+                orient='bottom', 
+                direction='horizontal', 
+                labelFontSize=12, 
+                labelOverlap=True), 
+                title=None
+                )
+    ).properties(
+        height=400,
+        padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
+        title=alt.Title(text="Street repair service requests", anchor='start', dx=50) #, dy=0)
+    ).transform_filter(
+        (alt.datum.Category == 'Street Repair/Maintenance')
+        & (alt.datum.Year >= 2022)
+    )
+
+    st.altair_chart(altair_street_repair_servce_requests.interactive(), use_container_width=True)
     
     
     
