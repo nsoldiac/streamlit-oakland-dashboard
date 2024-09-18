@@ -5,7 +5,6 @@ import numpy as np
 import altair as alt
 import datetime #, scipy, time
 
-
 st.set_page_config(layout="wide")
 
 
@@ -18,6 +17,7 @@ Welcome to Empower Oakland's city statistics dashboard. This dashboard provides 
 ''
 # Sidebar here 👇
 # st.sidebar.text("Use the sidebar to select the data you want to see")
+
 
 col1, col2 = st.columns(2, gap='large')
 
@@ -285,7 +285,7 @@ with col2:
         df_service_requests_aggregated,
         column_config={
             "Count": st.column_config.AreaChartColumn(
-                "Requets (last 4 years)",
+                "Requets (since 2023)",
                 width="medium",
                 help="Reuqests count since 2023",
                 y_min=0,
