@@ -22,7 +22,9 @@ Welcome to Empower Oakland's city statistics dashboard. This dashboard provides 
 col1, col2 = st.columns(2, gap='large')
 
 with col1:
-    # slider example
+    
+    st.header('Crime Activity and Response')
+
     min_value = 2015 #crime_df['date_month'].min().year
     max_value = datetime.datetime.now().year #crime_df['date_month'].max().year
 
@@ -167,6 +169,8 @@ with col1:
 
 
 with col2:
+    st.header('Campaign Funding Reporting')
+
     subcol_race_type, subcol_race_year = st.columns(2, vertical_alignment="bottom")
     race_type = subcol_race_type.selectbox(
         "**Campaign race**",
@@ -240,10 +244,11 @@ with col2:
         st.altair_chart(altair_campaign_funding, use_container_width=True)
 
     ''
-    ''
     st.divider()
     ''
     ''
+    
+    st.header('City Service Requests')
 
     # Ciry Service Requests
     url_service_requests = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=1661792648#gid=1661792648'
@@ -254,8 +259,45 @@ with col2:
     df_service_requests['Status'] = df_service_requests['Status'].replace(['EVALUATED - NO FURTHER ACTION', 'GONE ON ARRIVAL'], 'CLOSED')
     df_service_requests['Status'] = df_service_requests['Status'].replace(['WOCREATE'], 'PENDING')
     df_service_requests['Year'] = pd.to_datetime(df_service_requests['Month_date']).dt.year
-    st.write(df_service_requests)
+    
+    # st.write(df_service_requests)
+    
+    ## Service requests data editor
+    
+    # Filter and aggregate data for 2023 and 2024
+    df_service_requests_aggregated = df_service_requests[(df_service_requests['Year'].isin([ 2023, 2024]))].groupby(['Category']).agg({'Count': list}).reset_index()
+    df_status_sum_rates = df_service_requests[(df_service_requests['Year'].isin([2023, 2024]))].groupby(['Category','Status']).agg({'Count': sum}).reset_index()
+    # Pivot the Count in df_status_sum_rates by Status
+    df_status_sum_rates_pivot = df_status_sum_rates.pivot(index='Category', columns='Status', values='Count').reset_index()
 
+    # Sum the 'Count' array into a new column
+    df_service_requests_aggregated['Total'] = df_service_requests_aggregated['Count'].apply(lambda x: sum(x))
+    # Join the columns OPEN and CLOSED to df_service_requests_aggregated from df_status_sum_rates_pivot joining on 'Category'
+    df_service_requests_aggregated = df_service_requests_aggregated.merge(df_status_sum_rates_pivot, on='Category', how='left')
+    df_service_requests_aggregated['Closed Rate'] = (df_service_requests_aggregated['CLOSED'] / df_service_requests_aggregated['Total']).apply(lambda x: "{:.0%}".format(x))
+    
+    # Trim and reorder the columns
+    df_service_requests_aggregated = df_service_requests_aggregated[['Category', 'Total', 'Closed Rate', 'Count']]
+    # Sort by Total
+    df_service_requests_aggregated = df_service_requests_aggregated.sort_values(by='Total', ascending=False)
+
+    st.data_editor(
+        df_service_requests_aggregated,
+        column_config={
+            "Count": st.column_config.AreaChartColumn(
+                "Requets (last 4 years)",
+                width="medium",
+                help="Reuqests count since 2023",
+                y_min=0,
+                y_max=100,
+            ),
+        },
+        hide_index=True,
+    )
+
+
+
+    # Abandoned vehicle service requests
     altair_abandoned_vehicle_servce_requests = alt.Chart(df_service_requests).mark_bar(
         width=15,  # Set the width of the bars
     ).encode(
@@ -272,7 +314,7 @@ with col2:
                 title=None
                 )
     ).properties(
-        height=400,
+        height=450,
         padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
         title=alt.Title(text="Abandoned vehicle service requests", anchor='start', dx=50) #, dy=0)
     ).transform_filter(
@@ -301,7 +343,7 @@ with col2:
                 title=None
                 )
     ).properties(
-        height=400,
+        height=450,
         padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
         title=alt.Title(text="Street repair service requests", anchor='start', dx=50) #, dy=0)
     ).transform_filter(
