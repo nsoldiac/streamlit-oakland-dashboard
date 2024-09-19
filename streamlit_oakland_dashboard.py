@@ -88,11 +88,12 @@ with col1:
     ).properties(
         height=450,
         padding={"left": 15, "top": 0, "right": 0, "bottom": 0},
-        title=alt.Title(text='Crime Counts for top crime types', anchor='start', dx=45, dy=-15)
+        title=alt.Title(text='Crime Counts for top crime types', anchor='start', dx=45, subtitle="Source: Oakland Open Data Platform, OPD's CrimeWatch dataset")
     )
 
     # st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
     st.altair_chart(altair_crimeChart.interactive(), use_container_width=True)
+    # st.caption("_Source: [Oakland Police Department](https://data.oaklandnet.com/)_")
     ''
     ''
 
@@ -121,7 +122,7 @@ with col1:
     ).properties(
         height=450,
         # padding={"left": 0, "top": 0, "right": 0, "bottom": 0},
-        title=alt.Title(text='Violent crime change vs prior year', anchor='start', dx=30, dy=-15),
+        title=alt.Title(text='Violent crime change vs prior year', anchor='start', dx=30, dy=-15, subtitle="Source: Oakland Police Department's crime dataset"),
     ).configure_axisY(
         labelExpr="format(datum.value, '.0%')"
     )
@@ -159,7 +160,7 @@ with col1:
     ).properties(
         height=500,
         # padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
-        title=alt.Title(text="Average Police call to arrival in minutes", anchor='start', dx=30) #, dy=0)
+        title=alt.Title(text="Average Police call to arrival in minutes", anchor='start', dx=30, subtitle="Source: OPD's Supplemental Biannual Staffing Report (updated September 2023)") 
     )
 
     # st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
@@ -170,6 +171,7 @@ with col1:
 
 with col2:
     st.header('Campaign Funding Reporting')
+    st.caption("Source: Oakland Open Data Platform, Public Ethics Commission's Candidate Contributions (Show Me the Money) dataset")
 
     subcol_race_type, subcol_race_year = st.columns(2, vertical_alignment="bottom")
     race_type = subcol_race_type.selectbox(
@@ -249,6 +251,7 @@ with col2:
     ''
     
     st.header('City Service Requests')
+    st.caption("Source: Oakland Open Data Platform, Public Works/Department of Transportation's Service requests received by the Oakland Call Center dataset")
 
     # Ciry Service Requests
     url_service_requests = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=1661792648#gid=1661792648'
