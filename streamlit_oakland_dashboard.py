@@ -57,29 +57,6 @@ with col1:
         & (pd.to_datetime(from_year, format='%Y') <= crime_df['date_month'])
     ]
 
-    # Input annotations
-    # ANNOTATIONS = [
-    #     ("Jan 05, 2015", "Libby Schaaf 1st term"),
-    #     ("Jan 07, 2019", "Libby Schaaf's 2nd term"),
-    #     ("Mar 17, 2020", "COVID-19 lockdown + restrictions encated"),
-    #     ("Jan 09, 2023", "Sheng Tao + Pamela Price assume office"),
-    # ]
-
-    # Create a chart with annotations
-    # annotations_df = pd.DataFrame(ANNOTATIONS, columns=["date_month", "event"])
-    # annotations_df.date_month = pd.to_datetime(annotations_df.date_month)
-    # annotations_df["y"] = 0
-    # annotation_layer = (
-    #     alt.Chart(annotations_df)
-    #     .mark_text(size=20, text="⬇️", dx=0, dy=-100, align="center")
-    #     .encode(
-    #         x="date_month:T",
-    #         y=alt.Y("y:Q"),
-    #         tooltip=["event"],
-    #     )
-    #     .interactive()
-    # )
-
     # Altair line chart
     altair_crimeChart = alt.Chart(filtered_crime_df).mark_line(interpolate="monotone").encode(
         x=alt.X('date_month', title=None),  # No title for x-axis
@@ -245,9 +222,7 @@ with col2:
         
         st.altair_chart(altair_campaign_funding, use_container_width=True)
 
-    ''
     st.divider()
-    ''
     ''
     
     st.header('City Service Requests')
@@ -297,8 +272,11 @@ with col2:
         },
         hide_index=True,
     )
-
-
+    
+    ''
+    
+    # Select a category for detailed breakdown
+    service_category = st.selectbox('**Select a category for detailed breakdown below**', df_service_requests_aggregated['Category'].unique(), index=1)
 
     # Abandoned vehicle service requests
     altair_abandoned_vehicle_servce_requests = alt.Chart(df_service_requests).mark_bar(
@@ -317,44 +295,20 @@ with col2:
                 title=None
                 )
     ).properties(
-        height=450,
-        padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
-        title=alt.Title(text="Abandoned vehicle service requests", anchor='start', dx=50) #, dy=0)
+        height=400,
+        padding={"left": 40, "top": 0, "right": 0, "bottom": 0},
+        # title=alt.Title(text=None) #, dy=0)
     ).transform_filter(
-        (alt.datum.Category == 'Abandoned vehicle')
+        (alt.datum.Category == service_category)
         & (alt.datum.Year >= 2022)
     )
 
     st.altair_chart(altair_abandoned_vehicle_servce_requests.interactive(), use_container_width=True)
+        
+st.divider()
+''
 
-
-    
-    # Street repair service requests
-    altair_street_repair_servce_requests = alt.Chart(df_service_requests).mark_bar(
-        width=15,  # Set the width of the bars
-    ).encode(
-        x=alt.X('Month_date:T', title=None),  # No title for x-axis
-        y=alt.Y('Count:Q', title='Requests'),  # No title for y-axis,
-        color=alt.Color(
-            'Status:O', 
-            scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']), 
-            legend=alt.Legend(
-                orient='bottom', 
-                direction='horizontal', 
-                labelFontSize=12, 
-                labelOverlap=True), 
-                title=None
-                )
-    ).properties(
-        height=450,
-        padding={"left": 30, "top": 0, "right": 0, "bottom": 0},
-        title=alt.Title(text="Street repair service requests", anchor='start', dx=50) #, dy=0)
-    ).transform_filter(
-        (alt.datum.Category == 'Street Repair/Maintenance')
-        & (alt.datum.Year >= 2022)
-    )
-
-    st.altair_chart(altair_street_repair_servce_requests.interactive(), use_container_width=True)
-    
-    
-    
+st.markdown('''
+# About this dashboard 
+This dashboard is a project by Empower Oakland, a non-profit organization that aims to bring transparency to the city of Oakland. The data is sourced from the Oakland Open Data Platform and other public sources. The dashboard is built using Streamlit, a Python library for building web applications. 
+''')
