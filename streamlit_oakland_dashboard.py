@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import altair as alt
-import datetime #, scipy, time
+import datetime, textwrap #, scipy, time
 
 st.set_page_config(layout="wide")
 
@@ -25,8 +25,8 @@ with col1:
     
     st.header('Crime Activity and Response')
 
-    min_value = 2015 #crime_df['date_month'].min().year
-    max_value = datetime.datetime.now().year #crime_df['date_month'].max().year
+    min_value = 2015 
+    max_value = datetime.datetime.now().year 
 
     from_year, to_year = st.slider(
         '**Year range for crime ativity**',
@@ -278,8 +278,8 @@ with col2:
     # Select a category for detailed breakdown
     service_category = st.selectbox('**Select a category for detailed breakdown below**', df_service_requests_aggregated['Category'].unique(), index=1)
 
-    # Abandoned vehicle service requests
-    altair_abandoned_vehicle_servce_requests = alt.Chart(df_service_requests).mark_bar(
+    # Total service requests
+    altair_service_requests = alt.Chart(df_service_requests).mark_bar(
         width=15,  # Set the width of the bars
     ).encode(
         x=alt.X('Month_date:T', title=None),  # No title for x-axis
@@ -303,12 +303,123 @@ with col2:
         & (alt.datum.Year >= 2022)
     )
 
-    st.altair_chart(altair_abandoned_vehicle_servce_requests.interactive(), use_container_width=True)
+    st.altair_chart(altair_service_requests.interactive(), use_container_width=True)
         
 st.divider()
 ''
 
 st.markdown('''
-# About this dashboard 
-This dashboard is a project by Empower Oakland, a non-profit organization that aims to bring transparency to the city of Oakland. The data is sourced from the Oakland Open Data Platform and other public sources. The dashboard is built using Streamlit, a Python library for building web applications. 
+# 2024 Campaign Expenditure Reporting
+The following section shows aggregated and detailed campaign expenditures for offices up in this 2024 election cycle. The data is sourced from the Oakland Open Data Platform, originally published by the Public Ethics Commission's Candidate Expenditure's ("Show Me The Money") dataset.
 ''')
+
+url_campaign_expenditures = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=101441109#gid=101441109'
+df_campaign_expenditures = conn.query('''
+                                     select *
+                                     from "Candidate Expenditures" 
+                                     ''', spreadsheet=url_campaign_expenditures
+                                     )
+
+df_campaign_expenditures['expenditure_date'] = pd.to_datetime(df_campaign_expenditures['expenditure_date'])
+
+col_race_office_1, col_race_office_2 = st.columns([1,2], vertical_alignment="top")
+race_expense_office = col_race_office_1.selectbox(
+    "**Select an Office race**",
+    df_campaign_expenditures['office'].unique(),
+    index=1)
+
+race_expense_committee_type = col_race_office_2.multiselect(
+    "**Select Committee Types**",
+    df_campaign_expenditures['committee_type_name'].unique(),
+    df_campaign_expenditures['committee_type_name'].unique())
+
+filtered_expenditures_df = df_campaign_expenditures[['expenditure_date', 'committee_name','committee_type_name','amount','filer_name','recipient_name','expenditure_type','expenditure_description','office','jurisdiction','expenditure_month_date']]
+filtered_expenditures_df = filtered_expenditures_df[
+    (filtered_expenditures_df['office'] == race_expense_office) 
+    & (filtered_expenditures_df['committee_type_name'].isin(race_expense_committee_type))
+]
+# Wrap text in the 'label' column
+filtered_expenditures_df["committee_name_wrapped"] = filtered_expenditures_df["committee_name"].apply(lambda x: "|".join(textwrap.wrap(x, width=25)))
+filtered_expenditures_df['expenditure_month_date'] = pd.to_datetime(filtered_expenditures_df['expenditure_month_date'], errors='coerce')
+filtered_expenditures_df['expenditure_month_date_str'] = filtered_expenditures_df['expenditure_month_date'].dt.strftime('%m - %B')
+
+''
+
+col_expenditures_left, col_expenditures_right = st.columns([2,1], vertical_alignment="top")
+
+with col_expenditures_left:
+    # Bar chart for aggregated campaign expenditures
+    altair_campaign_expenditures = alt.Chart(filtered_expenditures_df).mark_bar(
+        # width=35,  # Set the width of the bars
+        stroke='white',
+        strokeWidth=1
+    ).encode(
+        x=alt.X('expenditure_month_date_str:N', title=None), 
+        y=alt.Y('sum(amount):Q', title='Expenditure Amount', axis=alt.Axis(format='$,.0f')),  
+        color=alt.Color(
+            'committee_name_wrapped:N', 
+            scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']),
+            legend=alt.Legend(
+                orient='right', 
+                title='Committee Name',
+                titleFontWeight='bold',
+                direction='vertical', 
+                labelExpr="split(datum.label, '|')",
+                labelSeparation=10,
+            )
+        ), 
+        order=alt.Order('amount', sort='descending'),
+        tooltip=[
+            alt.Tooltip('committee_name:N', title='Committee Name'), 
+            alt.Tooltip('amount:Q', format='$,.0f', title='Expense amount'),
+            alt.Tooltip('expenditure_type:N', title='Expense type'),
+            alt.Tooltip('committee_type_name:N', title='Expense type'),
+            # alt.Tooltip('expenditure_month_date:N', format='%B, 2024', title='Expense month'),
+            ],
+    ).properties(
+        height=450,
+        title=alt.Title(text='Detailed campaign monetary contrubutions over time'),
+        # padding={"left": 40, "top": 0, "right": 0, "bottom": 0},
+        # title=alt.Title(text=None) #, dy=0)
+    )
+
+    yzoom = alt.selection_interval(encodings=['y'], bind="scales", zoom="wheel![event.altKey]")
+    altair_campaign_expenditures.add_params(yzoom)
+    st.altair_chart(altair_campaign_expenditures.interactive(), use_container_width=True)
+
+with col_expenditures_right:
+    agg_filtered_expenditures_df = filtered_expenditures_df.groupby(['committee_name']).agg({'amount': sum}).reset_index()
+    altair_expenditures_arc = alt.Chart(agg_filtered_expenditures_df).mark_arc(
+        innerRadius=50,padAngle=0.02
+        ).encode(
+            theta=alt.Theta('amount:Q'),
+            color=alt.Color(
+                'committee_name:N', 
+                scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']),
+                legend=None
+            ), 
+            tooltip=[
+                alt.Tooltip('committee_name:N', title='Committee Name'), 
+                alt.Tooltip('amount:Q', format='$,.0f', title='Expense amount')
+                ],
+            order=alt.Order('amount', sort='descending')
+        ).properties(
+            title=alt.Title(text='Total campaign monetary contrubutions'),
+            # padding={"left": 0, "top": 50, "right": 0, "bottom": 0},
+            height=350,
+        )
+        
+    st.altair_chart(altair_expenditures_arc, use_container_width=True)
+
+# Table for detailed campaign expenditures
+st.data_editor(
+    filtered_expenditures_df[filtered_expenditures_df.columns.difference(['committee_name_wrapped','expenditure_month_date_str','expenditure_month_date'])],
+    hide_index=True,
+    column_config={
+        "amount": st.column_config.NumberColumn(
+            "Amount (in USD)",
+            help="The amount of the expenditure",
+            format="$%.2f",
+        )
+    },
+)
