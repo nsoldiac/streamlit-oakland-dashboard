@@ -1,6 +1,7 @@
 from streamlit_gsheets import GSheetsConnection
 import streamlit as st
 import pandas as pd
+import pydeck as pdk
 import numpy as np
 import altair as alt
 import datetime, textwrap #, scipy, time
@@ -305,6 +306,79 @@ with col2:
 
     st.altair_chart(altair_service_requests.interactive(), use_container_width=True)
         
+st.divider()
+''
+st.header('Mapping criminal activity over time')
+st.caption("Source: Oakland Open Data Platform, OPD's CrimeWatch dataset")
+
+url_crime_map = 'https://docs.google.com/spreadsheets/d/1Ye0jVwOa_aAK6AvOoXKBy9AOe0VxldjudldyLhIkyaE/edit?usp=sharing'
+df_crime_map = conn.query('''
+                            select CrimeType, DateQuarter, Latitude, Longitude
+                            from "Crime map" 
+                            where 
+                                Latitude is not null
+                                and Longitude is not null
+                                and CrimeType is not null
+                            ''', spreadsheet=url_crime_map)
+
+col_mapping_1, col_mapping_2 = st.columns([1,2], vertical_alignment="top")
+
+mapping_crime_type = col_mapping_1.selectbox(
+    "**Select a crime type**",
+    sorted(df_crime_map['CrimeType'].unique()),
+    index=7)
+
+mapping_crime_quarter = col_mapping_2.select_slider(
+    '**Time of reporting (in yearly quarters)**',
+    options = sorted(df_crime_map['DateQuarter'].unique()),
+)
+
+# Filter df_crime_map based on user inputs above
+filtered_crime_map = df_crime_map[
+    (df_crime_map['CrimeType'] == mapping_crime_type)
+    & (df_crime_map['DateQuarter'] == mapping_crime_quarter)
+    ]
+
+# st.write(filtered_crime_map)
+
+chart_data = filtered_crime_map[['Latitude', 'Longitude']]
+
+st.pydeck_chart(
+    pdk.Deck(
+        map_style=None,
+        initial_view_state=pdk.ViewState(
+            latitude=37.8,
+            longitude=-122.24,
+            zoom=10.8,
+            pitch=30,
+        ),
+        layers=[
+            pdk.Layer(
+                # "HexagonLayer",
+                "HeatmapLayer",
+                opacity=0.2,
+                data=chart_data,
+                get_position="[Longitude, Latitude]",
+                radius=300,
+                elevation_scale=4,
+                elevation_range=[0, 1000],
+                pickable=True,
+                extruded=True,
+            ),
+            # pdk.Layer(
+            #     "ScatterplotLayer",
+            #     data=chart_data,
+            #     get_position="[Longitude, Latitude]",
+            #     get_color="[200, 30, 0, 160]",
+            #     get_radius=150,
+            # ),
+        ],
+    )
+)
+
+''
+''
+
 st.divider()
 ''
 
