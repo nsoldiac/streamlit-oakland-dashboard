@@ -10,10 +10,16 @@ st.set_page_config(layout="wide")
 
 
 st.image('big_logo.png')
+st.markdown(
+    "<span style='font-style:italic; font-size:20px; color:gray;'>💡 Empower Oakland's 2024 <a href='https://empoweroakland.com/voter-guide/' target='_blank'>Voter Guide</a> is live. Check it out for more information on the candidates and measures on the ballot.</span>",
+    unsafe_allow_html=True
+)
 
+
+
+st.subheader('Oakland City Statistics')
 st.write('''
-# Oakland City Statistics  
-Welcome to Empower Oakland's city statistics dashboard. This dashboard provides a central location for city data usually siloed and disconnected. The goal of this dashboard is to bring these valuable bits of data together to show a cohesive view at how Okland is doing today and in context of its past.
+Welcome to Empower Oakland's city statistics dashboard. This dashboard provides a central location for siloed and disconnected data sources. This dashboard attempts to show a picture of how Okland is doing today vs the past.
 ''')
 ''
 # Sidebar here 👇
