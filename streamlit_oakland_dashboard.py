@@ -158,6 +158,7 @@ with col2:
     st.caption("Source: Oakland Open Data Platform, Public Ethics Commission's Candidate Contributions (Show Me the Money) dataset")
 
     subcol_race_type, subcol_race_year = st.columns(2, vertical_alignment="bottom")
+
     race_type = subcol_race_type.selectbox(
         "**Campaign race**",
         ('Mayor','City Council','District Attorney','School Board'), 
@@ -167,24 +168,65 @@ with col2:
         (2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024),
         index=7)
 
+
+    ## Funding by race and year
+
     url_campaign_funding = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=645810962#gid=645810962'
     df_campaign_funding = conn.query('''
-                                     select From_Date, Campaign_type, Filer_NamL as Reporter, sum(Amount_A) as amount 
+                                     select From_Date, Campaign_type, Filer_NamL as Reporter, Likely_Labor_Union, sum(Amount_A) as amount 
                                      from "Campaign finance summary totals" 
                                      where Line_Item = '5' and Form_Type = 'F460' and Campaign_type in ('Mayor','City Council','District Attorney','School Board')
-                                     group by 1,2,3
+                                     group by 1,2,3,4
                                      ''', spreadsheet=url_campaign_funding)
     df_campaign_funding['From_Date'] = pd.to_datetime(df_campaign_funding['From_Date'])
     df_campaign_funding['Year'] = df_campaign_funding['From_Date'].dt.year
     # st.dataframe(df_campaign_funding)
 
-     # Filter the data
+     # Filter the data 
     filtered_campaign_funding_df = df_campaign_funding[
         (df_campaign_funding['Year'] == race_year)
         & (df_campaign_funding['Campaign_type'] == race_type)
     ]
 
     subcol_left, subcol_right = st.columns(2, vertical_alignment="top")
+
+
+
+    # Funding - Union vs not 
+
+    url_detailed_campaign_funding = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=1664828561#gid=1664828561'
+    df_detailed_campaign_funding = conn.query('''
+                                     select Tran_Date, Filer_NamL as Filer, Tran_NamL as Person_on_Transaction, Tran_Emp as Person_Employer, Likely_Labor_Union, sum(Tran_Amt1) as amount 
+                                     from "Campaign finance summary totals" 
+                                     group by 1,2,3,4,5
+                                     ''', spreadsheet=url_detailed_campaign_funding)
+    df_detailed_campaign_funding['Tran_Date'] = pd.to_datetime(df_detailed_campaign_funding['Tran_Date'])
+    # filter out all data before 2012
+    df_detailed_campaign_funding = df_detailed_campaign_funding[df_detailed_campaign_funding['Tran_Date'] >= '2012-01-01']
+    df_detailed_campaign_funding['Year'] = df_detailed_campaign_funding['Tran_Date'].dt.year.astype(str)
+    df_detailed_campaign_funding = df_detailed_campaign_funding.sort_values(by='amount', ascending=False)
+
+    # Altair line chart
+    altair_fundingLabor = alt.Chart(df_detailed_campaign_funding).mark_bar().encode(
+        x=alt.X('Year:N', title=None),  # No title for x-axis
+        y=alt.Y('amount:Q',  title='Funding amount', axis=alt.Axis(format='$,.0f')),  # No title for y-axis,
+        color=alt.Color('Likely_Labor_Union', scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']), legend=alt.Legend(title=None, orient='bottom', direction='horizontal', labelFontSize=12, labelOverlap=True)),
+        tooltip=[
+            alt.Tooltip('Filer:N', title='Donation Filer'), 
+            alt.Tooltip('amount:Q', format='$,.0f', title='Expense amount'),
+            alt.Tooltip('Person_on_Transaction:N', title='Person on Transaction'),
+            alt.Tooltip('Person_Employer:N', title='Person Employer'),
+            ],
+            # order=alt.Order('amount', sort='descending')
+    ).properties(
+        height=650,
+        padding={"left": 50, "top": 0, "right": 0, "bottom": 0},
+        title=alt.Title(text='Labor Campaign funding vs Non-Labor', anchor='start', dx=45, subtitle="Source: Oakland Open Data Platform, Public Ethics Commission's Candidate Contributions dataset")
+    )
+
+    # st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
+    st.altair_chart(altair_fundingLabor.interactive(), use_container_width=True)
+
 
     with subcol_left:
         ''
@@ -218,7 +260,6 @@ with col2:
             color=alt.Color('Reporter',legend=None, scale=alt.Scale(range=['#1AAE74ff','#24B079ff','#2EB27Eff','#38B483ff','#42B789ff','#4BB98Eff','#55BB93ff','#5FBD98ff','#69BF9Dff','#73C1A2ff','#7DC3A7ff','#87C5ACff','#91C8B2ff','#9ACAB7ff','#A4CCBCff','#AECEC1ff','#B8D0C6ff'])), 
             tooltip=[alt.Tooltip('Reporter:N', title='Reporter'),
                 alt.Tooltip('amount:Q', format='$,.0f', title='Amount')],
-            order=alt.Order('amount', sort='descending')
         ).properties(
             title=alt.Title(text='Campaign monetary contrubutions'),
             padding={"left": 0, "top": 50, "right": 0, "bottom": 0},
