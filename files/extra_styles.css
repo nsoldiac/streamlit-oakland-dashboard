@@ -1,0 +1,4 @@
+/* add a style with font size of 28px for all elements with an ID that starts with 'tab-' */
+[id^="tabs-bui3-tab"] div p {
+    font-size: 28px;
+}
