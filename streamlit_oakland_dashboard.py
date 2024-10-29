@@ -375,12 +375,12 @@ with tab2:
             hide_index=True,
             column_config={
             "Filer": st.column_config.TextColumn(
-                "Donation Filer",
+                label="Donation Filer",
             ),
             "amount:Q": st.column_config.NumberColumn(
-                "Amount (in USD)",
+                label="Amount (in USD)",
                 help="The amount of the expenditure",
-                format="$,.0f"
+                format="$%d"
             )
             },
             height=500,
@@ -399,7 +399,7 @@ with tab2:
         ).properties(
             height=550,
             padding={"left": 15, "top": 0, "right": 0, "bottom": 0},
-            title=alt.Title(text='Labor Campaign funding vs Non-Labor', anchor='start', dx=45, subtitle="Source: Oakland Open Data Platform, Public Ethics Commission's Candidate Contributions dataset")
+            title=alt.Title(text='Labor contributions as share of all campaign funding', anchor='start', dx=45, subtitle="Source: Oakland Open Data Platform, Public Ethics Commission's Candidate Contributions dataset")
         )
 
         st.altair_chart(altair_fundingLabor_percent, use_container_width=True)
