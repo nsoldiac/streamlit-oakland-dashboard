@@ -324,7 +324,10 @@ with tab2:
             
             st.altair_chart(altair_campaign_funding, use_container_width=True)
 
-    with col_funding_2:
+        ''
+        ''
+        ''
+    
         # Funding - Union vs not 
         url_detailed_campaign_funding = 'https://docs.google.com/spreadsheets/d/18UO3R-DiBSUqNyHCIMP5HgmCQcpNd0su1IUDsyZkvNI/edit?gid=1664828561#gid=1664828561'
         df_detailed_campaign_funding = conn.query('''
@@ -341,20 +344,20 @@ with tab2:
         # if Person_Employer is null then replace with "N/A"
         df_detailed_campaign_funding['Person_Employer'] = df_detailed_campaign_funding['Person_Employer'].fillna('N/A')
 
+
         # Altair line chart
-        altair_fundingLabor = alt.Chart(df_detailed_campaign_funding).mark_bar().encode(
-            x=alt.X('Year:N', title=None),  # No title for x-axis
+        df_labor_campaign_fund_split = df_detailed_campaign_funding.groupby(['Year','Likely_Labor_Union']).agg({'amount': 'sum'}).reset_index()
+        
+        altair_fundingLabor = alt.Chart(df_labor_campaign_fund_split).mark_bar().encode(
+            x=alt.X('Year:O', title=None),  # No title for x-axis
             y=alt.Y('amount:Q',  title='Funding amount', axis=alt.Axis(format='$,.0f')),  # No title for y-axis,
             color=alt.Color('Likely_Labor_Union', scale=alt.Scale(range=['#1AAE74', '#1C2628', '#EB5E55', '#7C6C77', '#477998']), legend=alt.Legend(title=None, orient='bottom', direction='horizontal', labelFontSize=12, labelOverlap=True)),
+            xOffset='Likely_Labor_Union:N',
             tooltip=[
-                alt.Tooltip('Filer:N', title='Donation Filer'), 
                 alt.Tooltip('amount:Q', format='$,.0f', title='Expense amount'),
-                alt.Tooltip('Person_on_Transaction:N', title='Person on Transaction'),
-                alt.Tooltip('Person_Employer:N', title='Person Employer'),
                 ],
-                # order=alt.Order('amount', sort='descending')
         ).properties(
-            height=650,
+            height=600,
             padding={"left": 50, "top": 0, "right": 0, "bottom": 0},
             title=alt.Title(text='Labor Campaign funding vs Non-Labor', anchor='start', dx=45, subtitle="Source: Oakland Open Data Platform, Public Ethics Commission's Candidate Contributions dataset")
         )
@@ -362,40 +365,45 @@ with tab2:
         # st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
         st.altair_chart(altair_fundingLabor.interactive(), use_container_width=True)
 
+    with col_funding_2:
+        df_detailed_campaign_funding_by_filer = df_detailed_campaign_funding.groupby(['Filer']).agg({'amount': 'sum'}).reset_index().sort_values(by='amount', ascending=False)
+        # round amount column
+        df_detailed_campaign_funding_by_filer['amount'] = df_detailed_campaign_funding_by_filer['amount'].round(0)
 
+        st.data_editor(
+            df_detailed_campaign_funding_by_filer,
+            hide_index=True,
+            column_config={
+            "Filer": st.column_config.TextColumn(
+                "Donation Filer",
+            ),
+            "amount:Q": st.column_config.NumberColumn(
+                "Amount (in USD)",
+                help="The amount of the expenditure",
+                format="$,.0f"
+            )
+            },
+            height=500,
+        )
+        ''
 
+        # Line chatrt - Percent Labor vs Non-Labor 
+        df_labor_campaign_fund_pivot = df_labor_campaign_fund_split.pivot(index='Year', columns='Likely_Labor_Union', values='amount').reset_index()
+        df_labor_campaign_fund_pivot['Percent_Labor'] = df_labor_campaign_fund_pivot['Union/Labor'] / (df_labor_campaign_fund_pivot['Union/Labor'] + df_labor_campaign_fund_pivot['Other'])
 
-    # # Filter data for the years 2020 to 2024
-    # df_detailed_campaign_funding_filtered = df_detailed_campaign_funding[
-    #     df_detailed_campaign_funding['Year'].isin(['2022'])
-    #     # & df_detailed_campaign_funding['Year'].isin(['2020', '2021', '2022', '2023', '2024'])
-    # ]
+        # st.write(df_labor_campaign_fund_pivot)
 
-    # # df_detailed_campaign_funding_filtered group by filer and sum amounts into a new df
-    # df_detailed_campaign_funding_filtered_agg = df_detailed_campaign_funding_filtered.groupby(['Filer']).agg({'amount': sum}).reset_index()
-    # # sort df by amount
-    # df_detailed_campaign_funding_filtered_agg = df_detailed_campaign_funding_filtered_agg.sort_values(by='amount', ascending=False)
+        altair_fundingLabor_percent = alt.Chart(df_labor_campaign_fund_pivot).mark_line().encode(
+            x=alt.X('Year:O'),  # No title for x-axis
+            y=alt.Y('Percent_Labor:Q', title='Union/Labor Contribution as Share of All Funding', axis=alt.Axis(format='%')),  
+        ).properties(
+            height=550,
+            padding={"left": 15, "top": 0, "right": 0, "bottom": 0},
+            title=alt.Title(text='Labor Campaign funding vs Non-Labor', anchor='start', dx=45, subtitle="Source: Oakland Open Data Platform, Public Ethics Commission's Candidate Contributions dataset")
+        )
 
-    # altair_fundingLabor_2 = alt.Chart(df_detailed_campaign_funding_filtered_agg).mark_bar().encode(
-    #     y=alt.Y('Filer:N', title=None),  # No title for x-axis
-    #     x=alt.X('amount:Q',  title='Funding amount', axis=alt.Axis(format='$,.0f')),  
-    #     order=alt.Order("amount", sort="descending"),
-    #     tooltip=[
-    #         alt.Tooltip('amount:Q', format='$,.0f', title='Expense amount'),
-    #     ],
-    #     # order=alt.Order('amount', sort='descending')
-    # ).properties(
-    #     height=650,
-    #     padding={"left": 50, "top": 0, "right": 0, "bottom": 0},
-    #     title=alt.Title(text='Labor Campaign funding vs Non-Labor', anchor='start', dx=45, subtitle="Source: Oakland Open Data Platform, Public Ethics Commission's Candidate Contributions dataset")
-    # )
+        st.altair_chart(altair_fundingLabor_percent, use_container_width=True)
 
-    # # st.altair_chart((altair_crimeChart + annotation_layer).interactive(), use_container_width=True)
-    # st.altair_chart(altair_fundingLabor_2.interactive(), use_container_width=True)
-
-
-
-    # st.divider()
     ''
 
     st.markdown('''
@@ -560,7 +568,7 @@ with tab3:
                 "Count": st.column_config.AreaChartColumn(
                     "Requets (since 2023)",
                     width="medium",
-                    help="Reuqests count since 2023",
+                    help="Requests count since 2023",
                 ),
             },
             # num_rows=100,
